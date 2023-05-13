@@ -1,0 +1,88 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.0.4'
+	id 'io.spring.dependency-management' version '1.1.0'
+}
+
+group = 'ru.nsu.fit.kn'
+version = '0.0.1-SNAPSHOT'
+targetCompatibility = '17'
+sourceCompatibility = '17'
+
+repositories {
+	mavenCentral()
+}
+
+def generated_dir = "src/main/java"
+sourceSets {
+	generated {
+		java.srcDir "$generated_dir"
+	}
+}
+
+configurations {
+	jaxb
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter'
+	implementation 'org.springframework.boot:spring-boot-starter-web:3.0.4'
+	implementation 'org.springframework.boot:spring-boot-starter-web-services'
+	implementation 'org.springframework:spring-web:6.0.6'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+//	compileOnly 'org.projectlombok:lombok:1.18.26'
+//	annotationProcessor 'org.projectlombok:lombok:1.18.26'
+
+	jaxb "org.glassfish.jaxb:jaxb-xjc:4.0.1"
+	jaxb "org.glassfish.jaxb:jaxb-runtime:4.0.1"
+
+	// The next two dependencies are not necessary for generating code, only when running the code:
+	// Generated code depends on the JAXB API, which is removed from base Java in JDK 11, and therefore needs to be added
+	implementation "org.glassfish.jaxb:jaxb-runtime:4.0.1"
+	implementation 'jakarta.xml.bind:jakarta.xml.bind-api:4.0.0'
+
+	implementation 'org.apache.httpcomponents.client5:httpclient5:5.2.1'
+	implementation 'org.apache.httpcomponents.core5:httpcore5:5.2.1'
+
+	implementation 'com.github.dpaukov:combinatoricslib3:3.3.3'
+	implementation 'commons-codec:commons-codec:1.15'
+
+	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb:3.0.5'
+	implementation 'org.springframework.boot:spring-boot-starter-amqp'
+	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.14.2'
+}
+
+// https://stackoverflow.com/a/73027169
+// Cookie cutter function for defining multiple XJC tasks
+def addXjcTask(taskName, schema, pkg, dest) {
+
+	// If you haven't already, create the generated output dir before running XJC or it will fail
+	file(dest).mkdirs()
+
+
+	// The main XJC task, calls XJCFacade which is the entry point of the XJC JAR
+	tasks.create(name: taskName, type: JavaExec) {
+		classpath configurations.jaxb
+		mainClass = 'com.sun.tools.xjc.XJCFacade'
+
+		// To explore available args, download the XJC JAR and run java -jar jaxb-xjc.jar --help
+		args schema, "-p", pkg, "-d", dest, "-no-header"
+	}
+}
+
+// Add all the XJC tasks you need
+addXjcTask("crackhash-manager",
+		"src/main/resources/CrackHashManagerSchema.xsd",
+		"${group}.crackhash/messages",
+		"$generated_dir")
+addXjcTask("crackhash-worker",
+		"src/main/resources/CrackHashWorkerSchema.xsd",
+		"${group}.crackhash/messages",
+		"$generated_dir")
+
+tasks.register("generateSources") {
+	description "Generate Java sources from XSD files"
+	dependsOn tasks.getByName("crackhash-manager")
+	dependsOn tasks.getByName("crackhash-worker")
+}
