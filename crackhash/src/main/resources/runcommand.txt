@@ -1,0 +1,2 @@
+/usr/lib/jvm/java-19-openjdk/bin/java -jar ./build/libs/crackhash-0.0.1-SNAPSHOT.jar
+docker build --tag=crackhash:0.3 . && docker compose up -d
